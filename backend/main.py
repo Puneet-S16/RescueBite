@@ -3,11 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import models, schemas, crud
 from database import SessionLocal, engine
-from ai_engine import sort_donations_by_priority
+from ai_engine import sort_donations_by_priority, calculate_heat_score
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="RescueBite API")
+app = FastAPI(title="RescueBite API v2")
 
 # Setup CORS
 app.add_middleware(
@@ -28,34 +28,74 @@ def get_db():
 @app.on_event("startup")
 def startup_event():
     db = SessionLocal()
-    crud.init_dummy_heatmap_data(db)
+    crud.init_dummy_requests(db)
     db.close()
+
+@app.post("/requests", response_model=schemas.FoodRequestResponse)
+def create_request(food_req: schemas.FoodRequestCreate, db: Session = Depends(get_db)):
+    return crud.create_food_request(db, food_req)
+
+@app.get("/requests", response_model=list[schemas.FoodRequestResponse])
+def get_requests(db: Session = Depends(get_db)):
+    return crud.get_active_food_requests(db)
 
 @app.post("/donations", response_model=schemas.DonationResponse)
 def create_donation(donation: schemas.DonationCreate, db: Session = Depends(get_db)):
     return crud.create_donation(db=db, donation=donation)
 
-@app.get("/donations", response_model=list[schemas.DonationResponse])
-def read_donations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    donations = crud.get_donations(db, skip=skip, limit=limit)
-    return donations
-
 @app.get("/donations/nearby", response_model=list[schemas.DonationResponse])
 def read_nearby_donations(db: Session = Depends(get_db)):
     donations = crud.get_donations_by_status(db, status="pending")
-    heatmap_zones = crud.get_heatmap_data(db)
-    
-    # AI Logic to prioritize
-    prioritized = sort_donations_by_priority(donations, heatmap_zones)
+    prioritized = sort_donations_by_priority(donations)
     return prioritized
+
+@app.post("/volunteers", response_model=schemas.VolunteerResponse)
+def create_volunteer(volunteer: schemas.VolunteerCreate, db: Session = Depends(get_db)):
+    return crud.create_volunteer(db, volunteer)
 
 @app.post("/accept-task")
 def accept_task(task: schemas.TaskAccept, db: Session = Depends(get_db)):
-    updated_donation = crud.update_donation_status(db, donation_id=task.donation_id, new_status="accepted")
-    if not updated_donation:
+    result = crud.accept_and_assign_task(db, task)
+    if not result:
         raise HTTPException(status_code=404, detail="Donation not found")
-    return {"message": "Task accepted successfully", "donation": updated_donation}
+    return {"message": "Task accepted successfully", "data": result}
+
+@app.get("/match-request")
+def match_request(latitude: float, longitude: float, db: Session = Depends(get_db)):
+    active_requests = crud.get_active_food_requests(db)
+    from ai_engine import auto_assign_ngo
+    best_request = auto_assign_ngo(latitude, longitude, active_requests)
+    if not best_request:
+        return {"matched": False}
+    return {
+        "matched": True,
+        "request": best_request,
+        "remaining": best_request.required_quantity - best_request.fulfilled_quantity
+    }
 
 @app.get("/heatmap-data", response_model=list[schemas.HeatmapResponse])
-def read_heatmap_data(db: Session = Depends(get_db)):
-    return crud.get_heatmap_data(db)
+def get_heatmap_data(db: Session = Depends(get_db)):
+    requests = crud.get_active_food_requests(db)
+    heatmap_data = []
+    
+    for req in requests:
+        score = calculate_heat_score(req.required_quantity, req.fulfilled_quantity, req.urgency_level, req.created_at)
+        
+        # Convert SQLAlchemy object to dictionary, then add heat_score to match schema
+        req_dict = {
+            "id": req.id,
+            "requester_type": req.requester_type,
+            "name": req.name,
+            "contact": req.contact,
+            "latitude": req.latitude,
+            "longitude": req.longitude,
+            "required_quantity": req.required_quantity,
+            "fulfilled_quantity": req.fulfilled_quantity,
+            "urgency_level": req.urgency_level,
+            "created_at": req.created_at,
+            "is_completed": req.is_completed,
+            "heat_score": score
+        }
+        heatmap_data.append(req_dict)
+        
+    return heatmap_data

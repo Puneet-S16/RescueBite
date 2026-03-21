@@ -10,6 +10,7 @@ export default function Navbar() {
       </Link>
       <div className="flex gap-6 items-center flex-wrap">
         <Link to="/donate" className="hover:text-primary transition-colors font-medium">Donate Food</Link>
+        <Link to="/request" className="hover:text-red-500 transition-colors font-medium text-red-400">Request Food</Link>
         <Link to="/volunteer" className="hover:text-primary transition-colors font-medium">Volunteer</Link>
         <Link to="/heatmap" className="bg-primary/20 text-primary border border-primary/50 px-4 py-1.5 rounded-full hover:bg-primary/30 transition-colors font-medium text-sm">
           Live Heatmap

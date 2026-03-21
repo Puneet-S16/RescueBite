@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { AlertTriangle, Clock, MapPin, CheckCircle } from 'lucide-react';
+import { AlertCircle, Clock, MapPin, CheckCircle, Navigation } from 'lucide-react';
+import VolunteerSignup from '../components/VolunteerSignup';
 import L from 'leaflet';
 
-// Fix Leaflet Default Icon Issue
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -13,13 +13,21 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function VolunteerDashboard() {
+  const [volunteer, setVolunteer] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
+  
+  // Modal State
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [matchedRequest, setMatchedRequest] = useState(null);
+  const [contributedMeals, setContributedMeals] = useState('');
+  const [isAccepting, setIsAccepting] = useState(false);
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   const fetchTasks = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const res = await axios.get(`${API_URL}/donations/nearby`);
       setTasks(res.data);
     } catch (err) {
@@ -30,34 +38,66 @@ export default function VolunteerDashboard() {
   };
 
   useEffect(() => {
-    fetchTasks();
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
-        (err) => setUserLocation([40.7128, -74.0060]) // Fallback
-      );
-    } else {
-      setUserLocation([40.7128, -74.0060]); // Fallback
+    if (volunteer) {
+      fetchTasks();
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+          (err) => setUserLocation([40.7128, -74.0060])
+        );
+      } else {
+        setUserLocation([40.7128, -74.0060]);
+      }
     }
-  }, []);
+  }, [volunteer]);
 
-  const handleAccept = async (id) => {
+  const openAcceptModal = async (task) => {
+    setSelectedTask(task);
+    setContributedMeals(task.quantity.toString());
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      await axios.post(`${API_URL}/accept-task`, {
-        donation_id: id,
-        volunteer_id: 1 // Dummy ID
-      });
-      fetchTasks(); // Refresh list
-    } catch (err) {
-      console.error(err);
+      // Preview best match
+      const res = await axios.get(`${API_URL}/match-request?latitude=${task.latitude}&longitude=${task.longitude}`);
+      if (res.data.matched) {
+        setMatchedRequest(res.data);
+      } else {
+        setMatchedRequest(null);
+      }
+    } catch(err) {
+      console.error("Match error", err);
     }
   };
 
+  const confirmAcceptance = async () => {
+    setIsAccepting(true);
+    try {
+      await axios.post(`${API_URL}/accept-task`, {
+        donation_id: selectedTask.id,
+        volunteer_id: volunteer.id,
+        contributed_meals: parseInt(contributedMeals),
+        is_delivery_partner: volunteer.vehicle_availability
+      });
+      setSelectedTask(null);
+      fetchTasks();
+      alert("Task Assigned! " + (volunteer.vehicle_availability ? "You are the Delivery Partner." : "Self Delivery Initiated."));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to accept task");
+    } finally {
+      setIsAccepting(false);
+    }
+  };
+
+  if (!volunteer) {
+    return <VolunteerSignup onComplete={setVolunteer} />;
+  }
+
   return (
-    <div className="grid md:grid-cols-3 h-[calc(100vh-73px)]">
+    <div className="grid md:grid-cols-3 h-[calc(100vh-73px)] relative">
       <div className="col-span-1 bg-dark-800 border-r border-dark-700 overflow-y-auto p-6">
-        <h2 className="text-2xl font-bold mb-6 sticky top-0 bg-dark-800 pb-2 border-b border-dark-700">AI-Prioritized Tasks</h2>
+        <h2 className="text-2xl font-bold mb-2 sticky top-0 bg-dark-800 pt-2 pb-2">AI-Prioritized Tasks</h2>
+        <div className="mb-6 sticky top-12 bg-dark-800 pb-2 border-b border-dark-700 text-sm text-primary flex items-center gap-2">
+          Hello {volunteer.name} • {volunteer.vehicle_availability ? 'Delivery Partner' : 'Volunteer'}
+        </div>
         
         {loading ? (
           <p className="text-gray-400">Loading prioritized tasks...</p>
@@ -84,7 +124,7 @@ export default function VolunteerDashboard() {
                 </div>
                 
                 <button 
-                  onClick={() => handleAccept(task.id)}
+                  onClick={() => openAcceptModal(task)}
                   className="w-full mt-4 bg-white/10 hover:bg-primary hover:text-white transition-colors text-white font-medium py-2 rounded-lg flex justify-center items-center gap-2"
                 >
                   <CheckCircle className="w-4 h-4" /> Accept Rescue
@@ -122,6 +162,66 @@ export default function VolunteerDashboard() {
           </div>
         )}
       </div>
+
+      {/* Accept Task Modal */}
+      {selectedTask && (
+        <div className="absolute inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-dark-800 p-8 rounded-2xl border border-dark-700 w-full max-w-lg shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <Navigation className="text-primary" /> Confirm Task Details
+            </h2>
+            
+            <div className="space-y-4 mb-6 text-sm">
+              <div className="bg-dark-900 p-4 rounded-xl border border-dark-700">
+                <p className="text-gray-400 mb-1">Pickup Information (Donor)</p>
+                <p className="font-bold text-lg">{selectedTask.quantity} Meals ({selectedTask.food_type.toUpperCase()})</p>
+                <p>Location: {selectedTask.latitude.toFixed(4)}, {selectedTask.longitude.toFixed(4)}</p>
+              </div>
+
+              <div className="bg-dark-900 p-4 rounded-xl border border-primary/30 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-primary text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">AI ASSIGNED</div>
+                <p className="text-gray-400 mb-1">Target NGO / Relief Center</p>
+                {matchedRequest ? (
+                  <>
+                    <p className="font-bold text-lg text-primary">{matchedRequest.request.name}</p>
+                    <p>Total Meals Required: {matchedRequest.request.required_quantity}</p>
+                    <p className="text-red-400">Remaining Deficit: {matchedRequest.remaining}</p>
+                  </>
+                ) : (
+                  <p className="text-yellow-500 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4"/> No pending high-urgency requests. Delivery will be assigned to fallback shelter.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-gray-400 mb-2 mt-4 font-medium">How many meals will you fulfill from this batch?</label>
+                <input 
+                  type="number" min="1" max={selectedTask.quantity}
+                  value={contributedMeals}
+                  onChange={(e) => setContributedMeals(e.target.value)}
+                  className="w-full bg-dark-900 border border-dark-700 rounded-lg p-3 outline-none focus:border-primary text-xl font-bold"
+                />
+              </div>
+              
+              <div className="p-3 bg-dark-700/50 rounded-lg text-gray-400 flex items-center gap-2">
+                Roles: <span className="text-white font-medium">{volunteer.vehicle_availability ? "Delivery Partner Transport" : "Self-Delivery by Volunteer"}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button onClick={() => setSelectedTask(null)} className="flex-1 px-4 py-3 rounded-lg border border-dark-600 hover:bg-dark-700 transition">Cancel</button>
+              <button 
+                onClick={confirmAcceptance} 
+                disabled={isAccepting}
+                className="flex-1 px-4 py-3 rounded-lg bg-primary text-white font-bold hover:bg-orange-600 transition"
+              >
+                {isAccepting ? 'Assigning...' : 'Confirm & Claim'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
