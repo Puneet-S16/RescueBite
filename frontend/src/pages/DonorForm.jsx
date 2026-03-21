@@ -16,7 +16,8 @@ export default function DonorForm() {
     e.preventDefault();
     try {
       setStatus('Submitting...');
-      await axios.post('http://localhost:8000/donations', formData);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      await axios.post(`${API_URL}/donations`, formData);
       setStatus('Donation submitted successfully!');
       setFormData({...formData, quantity: 10, expiry_time: 5});
     } catch (err) {

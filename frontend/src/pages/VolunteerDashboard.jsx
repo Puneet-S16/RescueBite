@@ -18,7 +18,8 @@ export default function VolunteerDashboard() {
 
   const fetchTasks = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/donations/nearby');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await axios.get(`${API_URL}/donations/nearby`);
       setTasks(res.data);
     } catch (err) {
       console.error(err);
@@ -33,7 +34,8 @@ export default function VolunteerDashboard() {
 
   const handleAccept = async (id) => {
     try {
-      await axios.post('http://localhost:8000/accept-task', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      await axios.post(`${API_URL}/accept-task`, {
         donation_id: id,
         volunteer_id: 1 // Dummy ID
       });

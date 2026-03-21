@@ -14,7 +14,8 @@ export default function HeatmapPage() {
   const [zones, setZones] = useState([]);
 
   useEffect(() => {
-    axios.get('http://localhost:8000/heatmap-data')
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    axios.get(`${API_URL}/heatmap-data`)
       .then(res => setZones(res.data))
       .catch(err => console.error(err));
   }, []);
