@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Share, MapPin, Clock, Info } from 'lucide-react';
 
@@ -11,6 +11,28 @@ export default function DonorForm() {
     longitude: -74.0060,
   });
   const [status, setStatus] = useState('');
+  const [locating, setLocating] = useState(true);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setFormData(prev => ({
+            ...prev,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          }));
+          setLocating(false);
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          setLocating(false); // fallback to default
+        }
+      );
+    } else {
+      setLocating(false);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,12 +95,15 @@ export default function DonorForm() {
 
           <div className="bg-dark-900 p-4 rounded-lg flex gap-3 text-sm text-gray-400 border border-dark-700">
             <Info className="w-5 h-5 text-primary shrink-0" />
-            <p>For MVP, location is set automatically. In full version, this uses browser Geolocation or a Map Picker.</p>
+            <p>
+              {locating ? 'Acquiring device GPS location...' : `Location acquired: ${formData.latitude.toFixed(4)}, ${formData.longitude.toFixed(4)}`}
+            </p>
           </div>
 
           <button 
             type="submit" 
-            className="w-full bg-primary text-white font-bold py-4 rounded-lg hover:bg-orange-600 transition-colors mt-4"
+            disabled={locating}
+            className={`w-full text-white font-bold py-4 rounded-lg transition-colors mt-4 ${locating ? 'bg-gray-600 cursor-not-allowed' : 'bg-primary hover:bg-orange-600'}`}
           >
             Submit Donation
           </button>

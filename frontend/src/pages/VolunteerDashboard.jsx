@@ -15,6 +15,7 @@ L.Icon.Default.mergeOptions({
 export default function VolunteerDashboard() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState(null);
 
   const fetchTasks = async () => {
     try {
@@ -30,6 +31,14 @@ export default function VolunteerDashboard() {
 
   useEffect(() => {
     fetchTasks();
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        (err) => setUserLocation([40.7128, -74.0060]) // Fallback
+      );
+    } else {
+      setUserLocation([40.7128, -74.0060]); // Fallback
+    }
   }, []);
 
   const handleAccept = async (id) => {
@@ -87,20 +96,31 @@ export default function VolunteerDashboard() {
       </div>
 
       <div className="col-span-2 relative z-0">
-        <MapContainer center={[40.7128, -74.0060]} zoom={11} className="w-full h-full">
-          <TileLayer
-            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          />
-          {tasks.map(task => (
-             <Marker key={task.id} position={[task.latitude, task.longitude]}>
-               <Popup className="text-dark-900">
-                 <b>{task.quantity} people serving</b><br/>
-                 Expires in: {task.expiry_time} hours.
-               </Popup>
-             </Marker>
-          ))}
-        </MapContainer>
+        {userLocation ? (
+          <MapContainer center={userLocation} zoom={12} className="w-full h-full">
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
+            {userLocation && (
+              <Marker position={userLocation}>
+                <Popup className="text-dark-900 font-bold">You are here</Popup>
+              </Marker>
+            )}
+            {tasks.map(task => (
+               <Marker key={task.id} position={[task.latitude, task.longitude]}>
+                 <Popup className="text-dark-900">
+                   <b>{task.quantity} people serving</b><br/>
+                   Expires in: {task.expiry_time} hours.
+                 </Popup>
+               </Marker>
+            ))}
+          </MapContainer>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-dark-900 text-gray-400">
+            Acquiring GPS location...
+          </div>
+        )}
       </div>
     </div>
   );
