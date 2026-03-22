@@ -94,3 +94,9 @@ def get_heatmap_data(db: Session = Depends(get_db)):
         heatmap_data.append(req_dict)
         
     return heatmap_data
+
+@app.delete("/wipe-requests")
+def wipe_requests(db: Session = Depends(get_db)):
+    db.query(models.FoodRequest).delete()
+    db.commit()
+    return {"status": "wiped"}
