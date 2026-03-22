@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { HeartHandshake, Map, ArrowRight } from 'lucide-react';
+import HowItWorksSlider from '../components/HowItWorksSlider';
 
 export default function Home() {
   return (
@@ -38,6 +39,8 @@ export default function Home() {
           </div>
         ))}
       </div>
+      
+      <HowItWorksSlider />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import DonorForm from './pages/DonorForm';
 import RequestForm from './pages/RequestForm';
 import VolunteerDashboard from './pages/VolunteerDashboard';
 import HeatmapPage from './pages/HeatmapPage';
+import Footer from './components/Footer';
 import 'leaflet/dist/leaflet.css';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
             <Route path="/heatmap" element={<HeatmapPage />} />
           </Routes>
         </main>
+        <Footer />
       </div>
     </Router>
   );
