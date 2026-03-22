@@ -25,11 +25,6 @@ def get_db():
     finally:
         db.close()
 
-@app.on_event("startup")
-def startup_event():
-    db = SessionLocal()
-    crud.init_dummy_requests(db)
-    db.close()
 
 @app.post("/requests", response_model=schemas.FoodRequestResponse)
 def create_request(food_req: schemas.FoodRequestCreate, db: Session = Depends(get_db)):

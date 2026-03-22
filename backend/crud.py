@@ -75,15 +75,4 @@ def accept_and_assign_task(db: Session, task: schemas.TaskAccept):
     
     return {"donation": db_donation, "assigned_request": best_request, "self_delivery": task.is_delivery_partner}
 
-# --- Dummy Init Data for Demo ---
-def init_dummy_requests(db: Session):
-    existing = db.query(models.FoodRequest).count()
-    if existing == 0:
-        dummy_data = [
-            {"requester_type": "NGO", "name": "City Hope Center", "contact": "hello@cityhope.org", "latitude": 40.7128, "longitude": -74.0060, "required_quantity": 500, "urgency_level": "high"},
-            {"requester_type": "Individual", "name": "Community Shelter", "contact": "shelter@gmail.com", "latitude": 40.7300, "longitude": -73.9900, "required_quantity": 100, "urgency_level": "medium"},
-            {"requester_type": "NGO", "name": "Kids Foundation", "contact": "kids@foundation.org", "latitude": 40.7500, "longitude": -73.9800, "required_quantity": 300, "urgency_level": "low"},
-        ]
-        for data in dummy_data:
-            db.add(models.FoodRequest(**data))
-        db.commit()
+
