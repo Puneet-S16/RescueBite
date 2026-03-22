@@ -10,7 +10,7 @@ import 'leaflet/dist/leaflet.css';
 function App() {
   return (
     <Router basename={import.meta.env.BASE_URL}>
-      <div className="min-h-screen bg-dark-900 text-white flex flex-col">
+      <div className="min-h-screen text-white flex flex-col">
         <Navbar />
         <main className="flex-grow">
           <Routes>
