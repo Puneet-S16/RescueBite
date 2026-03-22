@@ -28,7 +28,10 @@ jobs:
       - name: Install Dependencies
         run: cd frontend && npm ci
       - name: Build Project
-        run: cd frontend && npm run build
+        run: |
+          cd frontend
+          npm run build
+          cp dist/index.html dist/404.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
