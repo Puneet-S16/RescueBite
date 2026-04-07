@@ -60,3 +60,31 @@ def auto_assign_ngo(donation_latitude: float, donation_longitude: float, active_
             best_request = req
             
     return best_request
+
+def generate_short_story(name: str, requester_type: str, required: int, urgency: str) -> str:
+    # A pseudo-AI template generator since we aren't using an external LLM
+    import random
+    
+    context_templates = [
+        "struggling to secure daily meals",
+        "facing severe food insecurity",
+        "in urgent need of nourishment",
+        "going through extremely tough times",
+        "waiting for assistance"
+    ]
+    
+    if requester_type.lower() == "ngo":
+        actor = f"We are an NGO ({name}) supporting"
+    else:
+        actor = f"I am {name}, reaching out to support"
+        
+    urgency_phrase = ""
+    if urgency.lower() == "high":
+        urgency_phrase = " The situation is critical and we desperately need help now."
+    elif urgency.lower() == "medium":
+        urgency_phrase = " We hope to receive assistance as soon as possible."
+        
+    ctx = random.choice(context_templates)
+    
+    story = f"{actor} {required} individuals who are {ctx}. Any contribution will make a huge difference.{urgency_phrase}"
+    return story

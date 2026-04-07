@@ -58,12 +58,44 @@ export default function HeatmapPage() {
                 weight: 1
               }}
             >
-              <Popup className="text-dark-900">
-                <b className="text-lg">{zone.name}</b><br/>
-                <b>Required:</b> {zone.required_quantity} meals<br/>
-                <b>Missing:</b> <span className="text-red-600 font-bold">{zone.required_quantity - zone.fulfilled_quantity}</span> meals<br/>
-                <hr className="my-1"/>
-                Heat Score: {zone.heat_score.toFixed(1)}
+              <Popup className="custom-popup min-w-[250px]">
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <b className="text-lg font-extrabold text-dark-900">{zone.name}</b>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white uppercase tracking-wider
+                      ${zone.urgency_level === 'high' ? 'bg-red-500' : zone.urgency_level === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}`}>
+                      {zone.urgency_level}
+                    </span>
+                  </div>
+                  
+                  <div className="text-sm font-medium text-gray-700">
+                    <span className="text-xs uppercase text-gray-500">TYPE:</span> {zone.requester_type}
+                  </div>
+
+                  {zone.short_story && (
+                    <p className="text-sm italic text-gray-600 bg-gray-100 p-2 rounded-lg border-l-4 border-primary">
+                      "{zone.short_story}"
+                    </p>
+                  )}
+
+                  <div className="mt-2">
+                    <div className="flex justify-between text-xs font-bold mb-1">
+                      <span className="text-gray-600">Progress</span>
+                      <span className="text-primary">{zone.fulfilled_quantity} / {zone.required_quantity} meals</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all" 
+                        style={{ width: `${Math.min(100, (zone.fulfilled_quantity / zone.required_quantity) * 100)}%` }}
+                      />
+                    </div>
+                    {zone.required_quantity > zone.fulfilled_quantity && (
+                      <p className="text-xs text-red-500 font-bold mt-1 text-right">
+                        {zone.required_quantity - zone.fulfilled_quantity} Deficit
+                      </p>
+                    )}
+                  </div>
+                </div>
               </Popup>
             </Circle>
           );

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { AlertCircle, Clock, MapPin, CheckCircle, Navigation } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import VolunteerSignup from '../components/VolunteerSignup';
 import L from 'leaflet';
 
@@ -13,18 +15,29 @@ L.Icon.Default.mergeOptions({
 });
 
 export default function VolunteerDashboard() {
+  const { user } = useAuth();
   const [volunteer, setVolunteer] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
   
-  // Modal State
   const [selectedTask, setSelectedTask] = useState(null);
   const [matchedRequest, setMatchedRequest] = useState(null);
   const [contributedMeals, setContributedMeals] = useState('');
   const [isAccepting, setIsAccepting] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+  // Auto-use logged-in user as volunteer
+  useEffect(() => {
+    if (user && !volunteer) {
+      setVolunteer({
+        id: user.id,
+        name: user.name,
+        vehicle_availability: user.vehicle_availability
+      });
+    }
+  }, [user]);
 
   const fetchTasks = async () => {
     try {
@@ -69,19 +82,20 @@ export default function VolunteerDashboard() {
 
   const confirmAcceptance = async () => {
     setIsAccepting(true);
+    const toastId = toast.loading('Assigning task...');
     try {
       await axios.post(`${API_URL}/accept-task`, {
         donation_id: selectedTask.id,
-        volunteer_id: volunteer.id,
+        user_id: volunteer.id,
         contributed_meals: parseInt(contributedMeals),
         is_delivery_partner: volunteer.vehicle_availability
       });
       setSelectedTask(null);
       fetchTasks();
-      alert("Task Assigned! " + (volunteer.vehicle_availability ? "You are the Delivery Partner." : "Self Delivery Initiated."));
+      toast.success("Task Assigned! " + (volunteer.vehicle_availability ? "You are the Delivery Partner." : "Self Delivery Initiated."), { id: toastId });
     } catch (err) {
       console.error(err);
-      alert("Failed to accept task");
+      toast.error("Failed to accept task", { id: toastId });
     } finally {
       setIsAccepting(false);
     }
@@ -194,14 +208,20 @@ export default function VolunteerDashboard() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-gray-400 mb-2 mt-4 font-medium">How many meals will you fulfill from this batch?</label>
-                <input 
-                  type="number" min="1" max={selectedTask.quantity}
-                  value={contributedMeals}
-                  onChange={(e) => setContributedMeals(e.target.value)}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-lg p-3 outline-none focus:border-primary text-xl font-bold"
-                />
+              <div className="bg-dark-900 p-4 rounded-xl border border-dark-700 mt-4">
+                <label className="block text-gray-400 mb-2 font-medium">Meals you want to contribute (Partial Fulfillment)</label>
+                <div className="flex items-center gap-4">
+                  <input 
+                    type="number" min="1" max={selectedTask.quantity}
+                    value={contributedMeals}
+                    onChange={(e) => setContributedMeals(e.target.value)}
+                    className="w-1/2 bg-dark-800 border border-dark-600 rounded-lg p-3 outline-none focus:border-primary text-xl font-bold text-white"
+                  />
+                  <div className="flex-1 text-sm text-gray-400">
+                    <p>Total available: {selectedTask.quantity}</p>
+                    <p className="font-bold text-orange-400 mt-1">Remaining after you: {selectedTask.quantity - (parseInt(contributedMeals) || 0)}</p>
+                  </div>
+                </div>
               </div>
               
               <div className="p-3 bg-dark-700/50 rounded-lg text-gray-400 flex items-center gap-2">
